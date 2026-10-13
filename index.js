@@ -1,33 +1,31 @@
 
 const SYSTEM_PROMPT = `
-أنت M.R251 AI، المساعد الرقمي المرتبط بموقع عرض كتاب
-"تمرد بلا حدود" للكاتب محمد عبد الحميد، المعروف باسم M.R251.
+أنت M.R251 AI، مساعد رقمي مرتبط بموقع عرض كتاب
+"تمرد بلا حدود" للكاتب محمد عبد الحميد المعروف باسم M.R251.
 
 الهوية والسلوك:
 - أنت مساعد رقمي ولست الكاتب نفسه.
 - استخدم العربية الفصحى افتراضيًا، والمصرية إذا بدأ الزائر بها،
   والإنجليزية إذا طلبها.
 - كن هادئًا وواثقًا وفلسفيًا ومباشرًا ومختصرًا.
-- اجعل ردك عادة من جملة إلى أربع جمل، وبحد أقصى تقريبي 60 كلمة.
-- استخدم 🖤 أو ⛓️ نادرًا فقط.
-- التمرد هو التفكير المستقل ومراجعة المسلّمات، وليس العنف.
-- اطرح أسئلة تفتح التفكير بدل فرض إجابات نهائية.
+- اجعل الرد عادة من جملة إلى أربع جمل، وبحد أقصى 60 كلمة غالبًا.
+- استخدم 🖤 أو ⛓️ نادرًا.
+- التمرد تفكير مستقل ومراجعة للمسلّمات، وليس عنفًا.
+- افتح باب التفكير ولا تفرض إجابات نهائية.
 - لا تختلق اقتباسات أو معلومات شخصية أو إنجازات للكاتب.
-- لا تكشف فهرس الكتاب أو تفاصيل فصوله غير المنشورة من تلقاء نفسك.
+- لا تكشف فهرس الكتاب أو تفاصيل غير منشورة من تلقاء نفسك.
 - لا تدّع تذكّر الزائر في محادثات سابقة.
-- لا تصف أي مشروع مستقبلي بأنه كتاب منشور رسميًا دون تأكيد.
+- لا تصف مشروعًا مستقبليًا بأنه منشور رسميًا دون تأكيد.
 - إذا كتب الزائر "تواصل"، أعطه حساب Instagram: ham_o251.
-- إذا امتدح الكاتب أو عبّر عن دعمه، اشكره بصدق ودفء دون
-  افتراض طبيعة الدعم أو ادعاء معرفة شخصية بالزائر.
-- إذا بدا أن الزائر يناقض نفسه أو لا يقول الحقيقة، تعامل بهدوء
-  واستخدم العبارة "دي حقيقة" عند ملاءمتها، دون اتهامات جارحة.
+- اشكر من يمدح الكاتب أو يدعمه بصدق ودفء دون افتراض طبيعة دعمه.
+- إذا بدا أن الزائر يناقض نفسه، تعامل بهدوء ولا تدّع أنك تعرف إن كان يكذب.
+  استخدم "دي حقيقة" عند ملاءمتها دون اتهامات جارحة.
+- احترم الخصوصية، ولا تطلب معلومات حساسة بلا ضرورة.
+- لا تكرر السؤال ولا تطل الرد بلا داعٍ.
+- لا تدّع امتلاك أدوات أو ذاكرة دائمة غير متاحة.
 `;
 
-const MODEL = "gemini-3.1-flash-lite";
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/" +
-  MODEL +
-  ":generateContent";
+const MODEL = "@cf/meta/llama-3.1-8b-instruct-fast";
 
 function jsonResponse(data, status = 200, origin = "*") {
   return new Response(JSON.stringify(data), {
@@ -45,24 +43,14 @@ function jsonResponse(data, status = 200, origin = "*") {
 
 function getAllowedOrigin(request, env) {
   const requestOrigin = request.headers.get("Origin");
-
-  // للاختبار الأولي. يمكن تقييد النطاقات لاحقًا.
   const configured = (env.ALLOWED_ORIGINS || "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 
-  if (!requestOrigin) {
-    return "*";
-  }
+  if (!requestOrigin || configured.length === 0) return "*";
 
-  if (configured.length === 0) {
-    return "*";
-  }
-
-  return configured.includes(requestOrigin)
-    ? requestOrigin
-    : null;
+  return configured.includes(requestOrigin) ? requestOrigin : null;
 }
 
 export default {
@@ -94,6 +82,7 @@ export default {
       return jsonResponse({
         ok: true,
         service: "M.R251 AI Core",
+        provider: "Cloudflare Workers AI",
         message: "الخادم يعمل. استخدم /health للفحص و/api/chat للدردشة."
       }, 200, origin);
     }
@@ -102,7 +91,9 @@ export default {
       return jsonResponse({
         ok: true,
         service: "M.R251 AI Core",
-        configured: Boolean(env.GEMINI_API_KEY)
+        provider: "Cloudflare Workers AI",
+        model: MODEL,
+        configured: Boolean(env.AI)
       }, 200, origin);
     }
 
@@ -120,10 +111,10 @@ export default {
       }, 405, origin);
     }
 
-    if (!env.GEMINI_API_KEY) {
+    if (!env.AI || typeof env.AI.run !== "function") {
       return jsonResponse({
         error: "AI_NOT_CONFIGURED",
-        message: "مفتاح Gemini غير مضبوط في إعدادات الخادم."
+        message: "ربط Workers AI باسم AI غير متاح للخادم."
       }, 503, origin);
     }
 
@@ -163,84 +154,75 @@ export default {
       }, 413, origin);
     }
 
-    const contents = [];
+    const messages = [
+      { role: "system", content: SYSTEM_PROMPT }
+    ];
+
     const history = Array.isArray(body.history)
       ? body.history.slice(-10)
       : [];
 
     for (const item of history) {
       if (
-        item &&
-        (item.role === "user" || item.role === "model") &&
-        typeof item.text === "string" &&
-        item.text.trim() &&
-        item.text.length <= 4000
-      ) {
-        contents.push({
-          role: item.role,
-          parts: [{ text: item.text }]
+        !item ||
+        typeof item.text !== "string" ||
+        !item.text.trim() ||
+        item.text.length > 4000
+      ) continue;
+
+      if (item.role === "user") {
+        messages.push({
+          role: "user",
+          content: item.text
+        });
+      } else if (item.role === "model" || item.role === "assistant") {
+        messages.push({
+          role: "assistant",
+          content: item.text
         });
       }
     }
 
-    contents.push({
+    messages.push({
       role: "user",
-      parts: [{ text: message.trim() }]
+      content: message.trim()
     });
 
     try {
-      const response = await fetch(
-        GEMINI_URL + "?key=" +
-          encodeURIComponent(env.GEMINI_API_KEY),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: SYSTEM_PROMPT }]
-            },
-            contents,
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 300
-            }
-          })
-        }
-      );
+      const result = await env.AI.run(MODEL, {
+        messages,
+        max_tokens: 300,
+        temperature: 0.7
+      });
 
-      const result = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        // لا نكشف مفتاح API أو تفاصيل داخلية للزائر.
-        console.error("Gemini API returned HTTP", response.status);
-
-        return jsonResponse({
-          error: "AI_REQUEST_FAILED",
-          message: response.status === 429
-            ? "وصلنا إلى حد الطلبات المتاح حاليًا. حاول لاحقًا."
-            : "تعذر الحصول على رد من الذكاء الاصطناعي. حاول لاحقًا."
-        }, 502, origin);
-      }
-
-      const reply = result?.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text || "")
-        .join("")
-        .trim();
+      const reply = typeof result?.response === "string"
+        ? result.response.trim()
+        : "";
 
       if (!reply) {
+        console.error("Workers AI returned no text response.");
+
         return jsonResponse({
           error: "EMPTY_AI_RESPONSE",
-          message: "لم يصل رد صالح من الذكاء الاصطناعي."
+          message: "لم يصل رد صالح من الذكاء الاصطناعي. حاول مجددًا."
         }, 502, origin);
       }
 
-      return jsonResponse({ reply }, 200, origin);
-    } catch {
       return jsonResponse({
-        error: "UPSTREAM_CONNECTION_FAILED",
-        message: "تعذر الاتصال بخدمة الذكاء الاصطناعي. حاول لاحقًا."
+        ok: true,
+        reply,
+        model: MODEL
+      }, 200, origin);
+
+    } catch (error) {
+      console.error(
+        "Workers AI request failed:",
+        String(error?.message || error).slice(0, 300)
+      );
+
+      return jsonResponse({
+        error: "AI_REQUEST_FAILED",
+        message: "تعذر الحصول على رد من الذكاء الاصطناعي. حاول لاحقًا."
       }, 502, origin);
     }
   }
