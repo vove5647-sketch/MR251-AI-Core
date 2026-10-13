@@ -1,0 +1,21 @@
+
+{
+  "name": "mr251-ai-core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "M.R251 AI backend",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0"
+  }
+}
